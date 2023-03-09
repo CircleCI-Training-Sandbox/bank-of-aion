@@ -30,9 +30,14 @@ workflows:
           revision: $CIRCLE_SHA1
           context:
             - reference-arch-aws-oidc
+      - java-checkstyle:
+          requires: [ secrets_detection ]
+      - python-checkstyle:
+          requires: [ secrets_detection ]
       - java_static_analysis:
           context:
             - reference-arch-aws-oidc
+          requires: [ java-checkstyle ]
           matrix:
             parameters:
               target-file:
@@ -43,18 +48,17 @@ workflows:
       - python_static_analysis:
           context:
             - reference-arch-aws-oidc
+          requires: [ python-checkstyle ]
           matrix:
             parameters:
               target-file:
                 - src/userservice/requirements.txt
                 - src/contacts/requirements.txt
                 - src/frontend/requirements.txt
-      - java-checkstyle
-      - python-checkstyle
       - java-test-and-code-cov:
-          requires: [ secrets_detection, java_static_analysis, java-checkstyle ]
+          requires: [ java_static_analysis ]
       - python-test:
-          requires: [ secrets_detection, python_static_analysis, python-checkstyle ]
+          requires: [ python_static_analysis ]
       - skaffold-build-push:
           context: cera-vault-oidc
           requires: [ java-test-and-code-cov, python-test ]
