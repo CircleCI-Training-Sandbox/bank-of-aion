@@ -39,22 +39,24 @@ workflows:
             - reference-arch-aws-oidc
           requires: [ java-checkstyle ]
           matrix:
+            name: << matrix.target-service >>-sast
             parameters:
-              target-file:
-                - src/ledgerwriter/pom.xml
-                - src/transactionhistory/pom.xml
-                - src/balancereader/pom.xml
-                - src/ledgermonolith/pom.xml
+              target-service:
+                - ledgerwriter
+                - transactionhistory
+                - balancereader
+                - ledgermonolith
       - python_static_analysis:
           context:
             - reference-arch-aws-oidc
           requires: [ python-checkstyle ]
           matrix:
+            name: << matrix.target-service >>-sast
             parameters:
-              target-file:
-                - src/userservice/requirements.txt
-                - src/contacts/requirements.txt
-                - src/frontend/requirements.txt
+              target-service:
+                - userservice
+                - contacts
+                - frontend
       - java-test-and-code-cov:
           requires: [ java_static_analysis ]
       - python-test:
@@ -254,7 +256,7 @@ jobs:
           path: ui-tests/cypress/screenshots    
   java_static_analysis:
     parameters:
-      target-file:
+      target-service:
         type: string
     executor: jdk17
     resource_class: small
@@ -262,10 +264,10 @@ jobs:
       - checkout
       - snyk/scan:
           severity-threshold: critical
-          target-file: << parameters.target-file >>
+          target-file: src/<< parameters.target-service >>/pom.xml
   python_static_analysis:
     parameters:
-      target-file:
+      target-service:
         type: string
     executor: python38
     resource_class: small
@@ -274,10 +276,10 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            pip install -r << parameters.target-file >>
+            pip install -r src/<< parameters.target-service >>/requirements.txt
       - snyk/scan:
           severity-threshold: critical
-          target-file: << parameters.target-file >>
+          target-file: src/<< parameters.target-service >>/requirements.txt
 
 commands:
   load-credentials:
