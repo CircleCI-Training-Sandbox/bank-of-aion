@@ -1,7 +1,10 @@
 version: 2.1
+
 orbs:
   compass: atlassian-labs/compass@0.1.2
+  ggshield: gitguardian/ggshield@1.1.4
   maven: circleci/maven@1.3.0
+  snyk: snyk/snyk@1.4.0
           
 executors:
   with-chrome:
@@ -19,6 +22,58 @@ executors:
     docker:
       - image: cimg/python:3.8
 
+workflows:
+  main:
+    jobs:
+      - ggshield/scan:
+          name: secrets_detection
+          revision: $CIRCLE_SHA1
+          context:
+            - reference-arch
+      - static_analysis:
+          context:
+            - reference-arch
+          matrix:
+            parameters:
+              target-file:
+                - src/ledgerwriter/pom.xml
+                - src/transactionhistory/pom.xml
+                - src/balancereader/pom.xml
+                - src/ledgermonolith/pom.xml
+                - src/userservice/requirements.txt
+                - src/contacts/requirements.txt
+                - src/frontend/requirements.txt
+      - java-checkstyle
+      - python-checkstyle
+      - java-test-and-code-cov:
+          requires: [ secrets_detection, static_analysis, java-checkstyle, python-checkstyle ]
+      - python-test:
+          requires: [ secrets_detection, static_analysis, java-checkstyle, python-checkstyle ]
+      - skaffold-build-push:
+          context: cera-vault-oidc
+      - deploy:
+          name: Deploy Dev
+          requires: [ skaffold-build-push, python-test, java-test-and-code-cov ]
+          context: [ compass-integration-bank-of-aion, cera-vault-oidc ]
+          post-steps:
+            - compass/notify_deployment:
+                token_name: COMPASS_CCI_TOKEN
+                environment_type: development
+      - e2e:
+          requires: [ Deploy Dev ]
+      - deploy:
+          name: Deploy Production
+          requires: [ e2e ]
+          boa-environment: prod
+          context: [ compass-integration-bank-of-aion, cera-vault-oidc-prod ]
+          filters:
+            branches:
+              only: [ main ]
+          post-steps:
+            - compass/notify_deployment:
+                token_name: COMPASS_CCI_TOKEN
+                environment_type: production
+                environment: CERA-Cluster-Namer-Prod
 
 jobs:
   python-checkstyle:
@@ -29,7 +84,6 @@ jobs:
       - run:
           name: Lint Python
           command: pylint --rcfile=./.pylintrc ./src/*/*.py
-
   python-test:
     executor: python38
     steps:
@@ -55,7 +109,6 @@ jobs:
           path: test-reports
       - store_artifacts:
           path: test-reports
-
   java-checkstyle:
     executor: jdk17
     steps:
@@ -64,8 +117,6 @@ jobs:
           verify_dependencies: false       
           steps: 
           - run: ./mvnw checkstyle:check
-
-
   java-test-and-code-cov:
     executor: jdk17
     steps:
@@ -101,7 +152,6 @@ jobs:
           path: test-reports
       - store_artifacts:
           path: test-reports
-
   skaffold-build-push:
       executor: jdk17
       steps:
@@ -135,8 +185,6 @@ jobs:
         - persist_to_workspace:
             root: output
             paths: [ 'tags.json' ]
- 
-
   deploy:
     executor: base
     parameters:
@@ -193,40 +241,17 @@ jobs:
           path: ui-tests/cypress/videos
       - store_artifacts:
           path: ui-tests/cypress/screenshots    
-   
-workflows:
-  main:
-    jobs:
-      - java-checkstyle
-      - java-test-and-code-cov
-      - python-checkstyle
-      - python-test
-      - skaffold-build-push:
-          context: cera-vault-oidc
-      - deploy:
-          name: Deploy Dev
-          requires: [ skaffold-build-push, python-test, java-test-and-code-cov ]
-          context: [ compass-integration-bank-of-aion, cera-vault-oidc ]
-          post-steps:
-            - compass/notify_deployment:
-                token_name: COMPASS_CCI_TOKEN
-                environment_type: development
-      - e2e:
-          requires: [ Deploy Dev ]
-      - deploy:
-          name: Deploy Production
-          requires: [ e2e ]
-          boa-environment: prod
-          context: [ compass-integration-bank-of-aion, cera-vault-oidc-prod ]
-          filters:
-            branches:
-              only: [ main ]
-          post-steps:
-            - compass/notify_deployment:
-                token_name: COMPASS_CCI_TOKEN
-                environment_type: production
-                environment: CERA-Cluster-Namer-Prod
-
+  static_analysis:
+    parameters:
+      target-file:
+        type: string
+    executor: jdk17
+    resource_class: small   # Verify that this overrides definition in executors stanza
+    steps:
+      - checkout
+      - snyk/scan:
+          severity-threshold: high
+          target-file: << parameters.target-file >>
 
 commands:
   load-credentials:
@@ -252,5 +277,3 @@ commands:
             jq -r '.data.data | to_entries[] | "export K8S_"+(.key | ascii_upcase)+"="+(.value | @sh) ' /tmp/cluster-secret.json >> $BASH_ENV
             vault read -format=json secret/data/nexus/boa-deployer > /tmp/nexus-secret.json
             jq -r '.data.data | to_entries[] | "export NEXUS_"+(.key | ascii_upcase)+"="+(.value | @sh) ' /tmp/nexus-secret.json >> $BASH_ENV
-
-# VS Code Extension Version: 1.5.1
