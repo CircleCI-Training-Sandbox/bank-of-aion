@@ -29,10 +29,10 @@ workflows:
           name: secrets_detection
           revision: $CIRCLE_SHA1
           context:
-            - reference-arch
+            - reference-arch-aws-oidc
       - static_analysis:
           context:
-            - reference-arch
+            - reference-arch-aws-oidc
           matrix:
             parameters:
               target-file:
