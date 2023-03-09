@@ -35,11 +35,11 @@ workflows:
       - python-checkstyle:
           requires: [ secrets_detection ]
       - java_static_analysis:
+          name: << matrix.target-service >>-sast
           context:
             - reference-arch-aws-oidc
           requires: [ java-checkstyle ]
           matrix:
-            name: << matrix.target-service >>-sast
             parameters:
               target-service:
                 - ledgerwriter
@@ -47,11 +47,11 @@ workflows:
                 - balancereader
                 - ledgermonolith
       - python_static_analysis:
+          name: << matrix.target-service >>-sast
           context:
             - reference-arch-aws-oidc
           requires: [ python-checkstyle ]
           matrix:
-            name: << matrix.target-service >>-sast
             parameters:
               target-service:
                 - userservice
