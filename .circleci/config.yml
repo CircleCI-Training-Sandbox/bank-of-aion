@@ -30,7 +30,7 @@ workflows:
           revision: $CIRCLE_SHA1
           context:
             - reference-arch-aws-oidc
-      - static_analysis:
+      - java_static_analysis:
           context:
             - reference-arch-aws-oidc
           matrix:
@@ -40,17 +40,24 @@ workflows:
                 - src/transactionhistory/pom.xml
                 - src/balancereader/pom.xml
                 - src/ledgermonolith/pom.xml
+      - python_static_analysis:
+          context:
+            - reference-arch-aws-oidc
+          matrix:
+            parameters:
+              target-file:
                 - src/userservice/requirements.txt
                 - src/contacts/requirements.txt
                 - src/frontend/requirements.txt
       - java-checkstyle
       - python-checkstyle
       - java-test-and-code-cov:
-          requires: [ secrets_detection, static_analysis, java-checkstyle, python-checkstyle ]
+          requires: [ secrets_detection, java_static_analysis, java-checkstyle ]
       - python-test:
-          requires: [ secrets_detection, static_analysis, java-checkstyle, python-checkstyle ]
+          requires: [ secrets_detection, python_static_analysis, python-checkstyle ]
       - skaffold-build-push:
           context: cera-vault-oidc
+          requires: [ java-test-and-code-cov, python-test ]
       - deploy:
           name: Deploy Dev
           requires: [ skaffold-build-push, python-test, java-test-and-code-cov ]
@@ -241,14 +248,29 @@ jobs:
           path: ui-tests/cypress/videos
       - store_artifacts:
           path: ui-tests/cypress/screenshots    
-  static_analysis:
+  java_static_analysis:
     parameters:
       target-file:
         type: string
     executor: jdk17
-    resource_class: small   # Verify that this overrides definition in executors stanza
+    resource_class: small
     steps:
       - checkout
+      - snyk/scan:
+          severity-threshold: high
+          target-file: << parameters.target-file >>
+  python_static_analysis:
+    parameters:
+      target-file:
+        type: string
+    executor: python38
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            pip install -r << parameters.target-file >>
       - snyk/scan:
           severity-threshold: high
           target-file: << parameters.target-file >>
