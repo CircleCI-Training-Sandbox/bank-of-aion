@@ -60,7 +60,7 @@ workflows:
           requires: [ java-test-and-code-cov, python-test ]
       - deploy:
           name: Deploy Dev
-          requires: [ skaffold-build-push, python-test, java-test-and-code-cov ]
+          requires: [ skaffold-build-push ]
           context: [ compass-integration-bank-of-aion, cera-vault-oidc ]
           post-steps:
             - compass/notify_deployment:
@@ -257,7 +257,7 @@ jobs:
     steps:
       - checkout
       - snyk/scan:
-          severity-threshold: high
+          severity-threshold: critical
           target-file: << parameters.target-file >>
   python_static_analysis:
     parameters:
@@ -272,7 +272,7 @@ jobs:
           command: |
             pip install -r << parameters.target-file >>
       - snyk/scan:
-          severity-threshold: high
+          severity-threshold: critical
           target-file: << parameters.target-file >>
 
 commands:

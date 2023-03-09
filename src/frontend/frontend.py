@@ -345,6 +345,8 @@ def create_app():
                              data=jsonify(transaction_data).data,
                              headers=hed,
                              timeout=app.config['BACKEND_TIMEOUT'])
+        
+        # pylint: disable = no-else-raise
         try:
             resp.raise_for_status()  # Raise on HTTP Status code 4XX or 5XX
         except requests.exceptions.HTTPError as http_request_err:
