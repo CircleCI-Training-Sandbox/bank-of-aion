@@ -1,10 +1,13 @@
 version: 2.1
 
+orbs:
+  linter: circleci/github-super-linter@1.0.1
+
 workflows:
   main:
     jobs:
-      - lint_java
-      - lint_python
+      - linter/lint:
+          scan-dir: src
 
 jobs:
   lint_python:
