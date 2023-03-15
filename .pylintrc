@@ -9,5 +9,5 @@ disable=F0401,  # import loading
         R1732,  # consider-using-with
         W1514,  # unspecified-encoding 
         C0209,  # consider-using-f-string 
-        R1734   # use-list-literal
-        R1720   # no-else-raise
+        R1734,   # use-list-literal
+        R1720,   # no-else-raise
