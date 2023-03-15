@@ -1,0 +1,28 @@
+version: 2.1
+
+workflows:
+  main:
+    jobs:
+      - lint_java
+      - lint_python
+
+jobs:
+  lint_python:
+    docker:
+      - image: cimg/python:3.8
+    steps:
+      - checkout
+      - run:
+          name: Install Pylint
+          command: pip install pylint
+      - run:
+          name: Lint Python
+          command: pylint --rcfile=./.pylintrc ./src/*/*.py
+  lint_java:
+    docker:
+      - image: cimg/openjdk:17.0.3
+    steps:
+      - checkout
+      - run:
+          name: Lint Java
+          command: ./mvnw checkstyle:check
