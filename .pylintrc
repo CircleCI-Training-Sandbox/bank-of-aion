@@ -10,3 +10,4 @@ disable=F0401,  # import loading
         W1514,  # unspecified-encoding 
         C0209,  # consider-using-f-string 
         R1734   # use-list-literal
+        ; R1720   # no-else-raise
